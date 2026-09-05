@@ -12,6 +12,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
 from typing import Dict, Any, List, Optional
 
@@ -66,9 +67,25 @@ def process_single(args) -> None:
 
 
 def process_batch(input_csv: str, output_csv: str) -> None:
+    """Process a CSV file of patient records and append risk scores.
+
+    Args:
+        input_csv: Path to input CSV file with patient data.
+        output_csv: Path to output CSV file for results.
+
+    Raises:
+        FileNotFoundError: If input_csv does not exist.
+        PermissionError: If lacking permissions to read/write files.
+        ValueError: If input CSV is empty or has no headers.
+    """
+    if not os.path.isfile(input_csv):
+        raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
+
     with open(input_csv, mode="r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
+        if not fieldnames:
+            raise ValueError(f"Input CSV file is empty or has no headers: {input_csv}")
         rows = list(reader)
 
     out_fields = fieldnames + ["score", "classification", "clinical_recommendation"]
@@ -81,6 +98,10 @@ def process_batch(input_csv: str, output_csv: str) -> None:
         row_dict["classification"] = calc_res["classification"]
         row_dict["clinical_recommendation"] = calc_res["clinical_recommendation"]
         out_rows.append(row_dict)
+
+    output_dir = os.path.dirname(output_csv)
+    if output_dir and not os.path.isdir(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
 
     with open(output_csv, mode="w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=out_fields)
