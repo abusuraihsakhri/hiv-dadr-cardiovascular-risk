@@ -110,3 +110,21 @@ def test_batch_rejects_overwrite(tmp_path):
     source.write_text("age\n45\n", encoding="utf-8")
     with pytest.raises(ValueError):
         process_batch(str(source), str(source))
+
+
+def test_csv_formula_is_escaped_on_export(tmp_path):
+    source = tmp_path / "formula.csv"
+    output = tmp_path / "safe.csv"
+    with source.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["subject_id", *VALID.keys()])
+        writer.writeheader()
+        writer.writerow({"subject_id": "=1+1", **VALID})
+    process_batch(str(source), str(output))
+    with output.open(newline="", encoding="utf-8") as stream:
+        row = next(csv.DictReader(stream))
+    assert row["subject_id"] == "'=1+1"
+    assert row["validation_status"] == "INPUTS_COMPLETE"
+
+
+def test_age_must_be_whole_year():
+    assert calculate_metrics(**(VALID | {"age": 48.5}))["status"] == "INPUTS_INCOMPLETE"
