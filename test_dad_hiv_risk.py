@@ -1,80 +1,112 @@
+"""Regression tests: no unvalidated HIV cardiovascular risk prediction."""
+import csv
+import json
+
 import pytest
-from dad_hiv_risk import calculate_metrics, process_batch
+
+from dad_hiv_risk import calculate_metrics, main, process_batch
+
+VALID = dict(
+    age=48, sex="male", systolic_bp=130, smoking_status="former",
+    family_history_cvd="no", diabetes="no",
+    total_cholesterol=5.2, hdl_cholesterol=1.3, cd4_count=650,
+)
 
 
-def test_dad_hiv_risk_single():
-    res = calculate_metrics(v1=12.0, v2=4.0)
-    assert "score" in res
-    assert "classification" in res
-    assert res["score"] > 0
+def test_complete_inputs_do_not_generate_risk_or_treatment():
+    result = calculate_metrics(**VALID)
+    assert result["status"] == "INPUTS_COMPLETE"
+    assert result["score"] is None
+    assert result["risk_5y_percent"] is None
+    assert result["classification"] == "NOT_CALCULATED"
+    assert result["clinical_recommendation"] == "No clinical recommendation is calculated."
+    assert result["missing_inputs"] == []
+    assert result["validation_errors"] == []
 
 
-def test_dad_hiv_risk_batch(tmp_path):
-    csv_in = tmp_path / "in.csv"
-    csv_out = tmp_path / "out.csv"
-    csv_in.write_text("Patient,v1,v2\nPat_001,15.0,3.0\nPat_002,5.0,1.0\n", encoding="utf-8")
-
-    process_batch(str(csv_in), str(csv_out))
-    assert csv_out.exists()
-    content = csv_out.read_text(encoding="utf-8")
-    assert "Pat_001" in content
-    assert "score" in content
+def test_missing_predictors_are_reported():
+    result = calculate_metrics(age=45)
+    assert result["status"] == "INPUTS_INCOMPLETE"
+    assert "cd4_count" in result["missing_inputs"]
+    assert result["risk_5y_percent"] is None
 
 
-def test_calculate_metrics_no_args():
-    """Test calculate_metrics with no arguments returns default score."""
-    res = calculate_metrics()
-    assert "score" in res
-    assert "classification" in res
-    assert res["inputs_evaluated"] == 0
+@pytest.mark.parametrize("override", [
+    {"age": "nan"}, {"age": float("inf")}, {"age": True},
+    {"sex": "invalid"}, {"smoking_status": "unknown"},
+    {"systolic_bp": -20}, {"cd4_count": 0},
+    {"diabetes": "maybe"}, {"family_history_cvd": "maybe"},
+    {"hdl_cholesterol": 8},  # exceeds total cholesterol
+    {"unexpected": "value"},
+])
+def test_bad_inputs_cannot_be_marked_complete(override):
+    result = calculate_metrics(**(VALID | override))
+    assert result["status"] == "INPUTS_INCOMPLETE"
+    assert result["validation_errors"]
+    assert result["score"] is None
 
 
-def test_calculate_metrics_string_only():
-    """Test calculate_metrics with only string values."""
-    res = calculate_metrics(name="test", label="abc")
-    assert "score" in res
-    assert res["inputs_evaluated"] == 2
+def test_invalid_numeric_string_cannot_raise_conversion_exception():
+    result = calculate_metrics(**(VALID | {"total_cholesterol": "not a number"}))
+    assert result["status"] == "INPUTS_INCOMPLETE"
 
 
-def test_calculate_metrics_mixed_types():
-    """Test calculate_metrics with mixed numeric and string values."""
-    res = calculate_metrics(v1=10.0, v2="text", v3=5.5)
-    assert res["score"] > 0
-    assert res["inputs_evaluated"] == 3
+def test_no_input_is_not_default_risk_estimate():
+    result = calculate_metrics()
+    assert result["score"] is None
+    assert len(result["missing_inputs"]) == 9
 
 
-def test_calculate_metrics_classification_tiers():
-    """Test classification tiers based on score thresholds."""
-    low = calculate_metrics(v1=5.0)
-    assert low["classification"] == "Low / Standard"
-
-    moderate = calculate_metrics(v1=15.0)
-    assert moderate["classification"] == "Moderate / Intermediate"
-
-    high = calculate_metrics(v1=30.0)
-    assert high["classification"] == "High / Severe"
+def test_cli_single_outputs_non_scored_json(capsys):
+    args = ["single"]
+    for key, value in VALID.items():
+        args += ["--" + key.replace("_", "-"), str(value)]
+    assert main(args) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "INPUTS_COMPLETE"
+    assert result["score"] is None
 
 
-def test_process_batch_file_not_found(tmp_path):
-    """Test process_batch raises FileNotFoundError for missing input."""
-    csv_out = tmp_path / "out.csv"
+def test_batch_preserves_rows_and_replaces_stale_risk(tmp_path):
+    source = tmp_path / "cohort.csv"
+    output = tmp_path / "nested" / "validated.csv"
+    fields = ["subject"] + list(VALID) + ["risk_5y_percent"]
+    with source.open("w", newline="", encoding="utf-8-sig") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerow({"subject": "study-001", **VALID, "risk_5y_percent": "99"})
+    process_batch(str(source), str(output))
+    with output.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        assert len(reader.fieldnames) == len(set(reader.fieldnames))
+    assert rows[0]["subject"] == "study-001"
+    assert rows[0]["risk_5y_percent"] == ""
+    assert rows[0]["validation_status"] == "INPUTS_COMPLETE"
+
+
+def test_batch_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError):
-        process_batch(str(tmp_path / "nonexistent.csv"), str(csv_out))
+        process_batch(str(tmp_path / "missing.csv"), str(tmp_path / "out.csv"))
 
 
-def test_process_batch_empty_csv(tmp_path):
-    """Test process_batch raises ValueError for empty CSV."""
-    csv_in = tmp_path / "empty.csv"
-    csv_out = tmp_path / "out.csv"
-    csv_in.write_text("", encoding="utf-8")
+def test_batch_rejects_missing_and_duplicate_headers(tmp_path):
+    for data in ("", "age,age\n40,41\n"):
+        source = tmp_path / "bad.csv"
+        source.write_text(data, encoding="utf-8")
+        with pytest.raises(ValueError):
+            process_batch(str(source), str(tmp_path / "out.csv"))
+
+
+def test_batch_rejects_extra_columns(tmp_path):
+    source = tmp_path / "bad.csv"
+    source.write_text("age,sex\n40,male,extra\n", encoding="utf-8")
     with pytest.raises(ValueError):
-        process_batch(str(csv_in), str(csv_out))
+        process_batch(str(source), str(tmp_path / "out.csv"))
 
 
-def test_process_batch_creates_output_directory(tmp_path):
-    """Test process_batch creates output directory if it doesn't exist."""
-    csv_in = tmp_path / "in.csv"
-    csv_out = tmp_path / "subdir" / "nested" / "out.csv"
-    csv_in.write_text("Patient,v1\nPat_001,10.0\n", encoding="utf-8")
-    process_batch(str(csv_in), str(csv_out))
-    assert csv_out.exists()
+def test_batch_rejects_overwrite(tmp_path):
+    source = tmp_path / "same.csv"
+    source.write_text("age\n45\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        process_batch(str(source), str(source))
