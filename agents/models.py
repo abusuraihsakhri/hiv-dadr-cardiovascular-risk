@@ -1,12 +1,12 @@
 """
 Pydantic v2 schemas and data definitions for Hiv Dadr Cardiovascular Risk.
-Domain: Antimicrobial Stewardship & Microbiology
-Standard: CLSI M100 / EUCAST / CDC NHSN Guidelines
+Domain: Non-clinical demonstration
+Standard: Demonstration only; no clinical risk model implemented
 """
 import datetime
 from enum import Enum
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class UrgencyLevel(str, Enum):
@@ -22,6 +22,7 @@ class SystemIntegrityStatus(str, Enum):
 
 
 class SystemTaskPayload(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     task_id: str = Field(..., description="Unique task / case identifier")
     target_identifier: str = Field(..., description="Entity, patient key, or genomic/cryptographic target")
     primary_metric: float = Field(..., description="Primary domain measurement or score")
@@ -39,7 +40,7 @@ class AgentAlert(BaseModel):
     summary: str
     technical_details: str
     actionable_remediation: str
-    standard_reference: str = "CLSI M100 / EUCAST / CDC NHSN Guidelines"
+    standard_reference: str = "Demonstration only; no clinical risk model implemented"
     timestamp: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
@@ -49,7 +50,7 @@ class AgentAlert(BaseModel):
 class ConsensusDossier(BaseModel):
     dossier_id: str
     system_slug: str = "hiv-dadr-cardiovascular-risk"
-    domain: str = "Antimicrobial Stewardship & Microbiology"
+    domain: str = "Non-clinical demonstration"
     task_id: str
     target_identifier: str
     overall_urgency: UrgencyLevel
@@ -57,7 +58,7 @@ class ConsensusDossier(BaseModel):
     total_alerts: int
     critical_alerts_count: int
     alerts: List[AgentAlert]
-    standard_reference: str = "CLSI M100 / EUCAST / CDC NHSN Guidelines"
+    standard_reference: str = "Demonstration only; no clinical risk model implemented"
     consensus_summary: str
     audit_hash: str
     timestamp: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
