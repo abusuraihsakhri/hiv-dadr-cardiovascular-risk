@@ -107,6 +107,22 @@ def process_single(args: argparse.Namespace) -> None:
     }), indent=2))
 
 
+def _csv_safe_cell(value: Any) -> Any:
+    """Prevent spreadsheet formula execution when a CSV is opened in Excel."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip()
+    if not stripped or stripped[0] not in "=+-@":
+        return value
+    if stripped[0] in "+-":
+        try:
+            if math.isfinite(float(stripped)):
+                return value  # Preserve ordinary signed numeric values.
+        except ValueError:
+            pass
+    return "'" + value
+
+
 def process_batch(input_csv: str, output_csv: str) -> None:
     """Annotate local CSV records with input-completeness status, never risk."""
     if not os.path.isfile(input_csv):
@@ -142,7 +158,8 @@ def process_batch(input_csv: str, output_csv: str) -> None:
     with open(output_csv, "w", newline="", encoding="utf-8") as destination:
         writer = csv.DictWriter(destination, fieldnames=output_fields)
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows([{k: _csv_safe_cell(v) for k, v in row.items()}
+                         for row in results])
     print(f"Validated {len(results)} records -> {output_csv} (no risk scores computed)")
 
 
