@@ -12,8 +12,8 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Hiv Dadr Cardiovascular Risk API",
-    description="Enterprise Distributed Component Platform (Antimicrobial Stewardship & Microbiology)",
-    version="3.0.0-ENTERPRISE",
+    description="Demonstration-only rule engine; no validated D:A:D risk predictions",
+    version="3.0.0",
 )
 
 
@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "hiv-dadr-cardiovascular-risk", "domain": "Antimicrobial Stewardship & Microbiology", "standard": "CLSI M100 / EUCAST / CDC NHSN Guidelines", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "hiv-dadr-cardiovascular-risk", "domain": "Non-clinical demonstration", "standard": "No clinical standards certification claimed", "version": "3.0.0"}
 
 
 @app.get("/metrics")
@@ -31,7 +31,7 @@ def metrics():
     return {
         "dossiers_processed_total": len(supervisor.dossier_registry),
         "audit_blocks_total": len(AuditLogger.get_trail()),
-        "system_status": "NOMINAL_OPTIMAL"
+        "system_status": "DEMONSTRATION_ONLY"
     }
 
 
