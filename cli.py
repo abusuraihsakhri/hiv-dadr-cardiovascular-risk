@@ -9,6 +9,7 @@ import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
 from agents.base import AuditLogger
+from dad_hiv_risk import _csv_safe_cell
 
 supervisor = SystemSupervisor(model_provider="mock")
 
@@ -112,7 +113,8 @@ def main(argv=None):
         with open(args.output, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)
             writer.writeheader()
-            writer.writerows(out_rows)
+            writer.writerows([{k: _csv_safe_cell(v) for k, v in row.items()}
+                             for row in out_rows])
         print(f"Processed {len(out_rows)} records -> {args.output}")
         return 0
 
