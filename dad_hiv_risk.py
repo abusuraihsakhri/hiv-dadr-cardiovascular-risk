@@ -43,7 +43,7 @@ def _validate_value(name: str, value: Any) -> str | None:
         except (TypeError, ValueError):
             return f"{name} must be a number"
         low, high = NUMERIC_RANGES[name]
-        if not math.isfinite(number) or not low <= number <= high:
+        if not math.isfinite(number) or not low <= number <= high or (name == "age" and not number.is_integer()):
             return f"{name} must be between {low} and {high}"
     elif name == "sex":
         if str(value).strip().lower() not in ("male", "female"):
@@ -117,7 +117,7 @@ def process_batch(input_csv: str, output_csv: str) -> None:
     with open(input_csv, newline="", encoding="utf-8-sig") as source:
         reader = csv.DictReader(source)
         fields = list(reader.fieldnames or [])
-        if not fields or len(fields) != len(set(fields)):
+        if not fields or any(not field.strip() for field in fields) or len(fields) != len(set(fields)):
             raise ValueError("Input CSV requires unique, nonempty headers")
         rows = list(reader)
     results = []
