@@ -1,139 +1,189 @@
 #!/usr/bin/env python3
-"""
-D:A:D 5-Year Cardiovascular Risk Equation for HIV
-Calculates 5-year CVD risk tailored for people living with HIV on antiretroviral therapy (ART).
+"""D:A:D input completeness checker.
 
-Zero-dependency Python implementation with single and batch evaluation.
-Author: Dr. Abu Suraih Sakhri
-License: MIT
+This module does NOT implement the published 2016 D:A:D CVD prediction
+equation. In particular it never estimates an individual's cardiovascular
+risk or recommends clinical treatment. It validates the predictors needed
+to use the study group's calculator independently.
 """
-
 import argparse
 import csv
 import json
 import math
 import os
-import sys
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict
+
+# Predictors for the published D:A:D reduced model (2016).
+# See https://pubmed.ncbi.nlm.nih.gov/25882821/
+REQUIRED_FIELDS = (
+    "age", "sex", "systolic_bp", "smoking_status", "family_history_cvd",
+    "diabetes", "total_cholesterol", "hdl_cholesterol", "cd4_count",
+)
+NUMERIC_RANGES = {
+    "age": (18, 75),                 # age range noted by the study calculator
+    "systolic_bp": (50, 300),        # broad data-entry sanity limits
+    "total_cholesterol": (0.1, 30),  # mmol/L
+    "hdl_cholesterol": (0.1, 10),    # mmol/L
+    "cd4_count": (1, 5000),          # cells/uL
+}
+BOOL_FIELDS = ("family_history_cvd", "diabetes")
+CALCULATOR_URL = "https://chip.dk/resources/tools-standards/risk-assessment-tool/"
 
 
-def calculate_metrics(**kwargs) -> Dict[str, Any]:
+def _empty(value: Any) -> bool:
+    return value is None or isinstance(value, str) and not value.strip()
+
+
+def _validate_value(name: str, value: Any) -> str | None:
+    if name in NUMERIC_RANGES:
+        if isinstance(value, bool):
+            return f"{name} must be a number"
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return f"{name} must be a number"
+        low, high = NUMERIC_RANGES[name]
+        if not math.isfinite(number) or not low <= number <= high or (name == "age" and not number.is_integer()):
+            return f"{name} must be between {low} and {high}"
+    elif name == "sex":
+        if str(value).strip().lower() not in ("male", "female"):
+            return "sex must be male or female (as coded by the published model)"
+    elif name == "smoking_status":
+        if str(value).strip().lower() not in ("never", "former", "current"):
+            return "smoking_status must be never, former, or current"
+    elif name in BOOL_FIELDS:
+        if not (isinstance(value, bool) or str(value).strip().lower() in (
+            "true", "false", "yes", "no", "1", "0"
+        )):
+            return f"{name} must be yes or no"
+    return None
+
+
+def calculate_metrics(**kwargs: Any) -> Dict[str, Any]:
+    """Validate reduced-model predictors without fabricating a clinical score.
+
+    Retains the historical entry point, but deliberately withdraws its
+    arbitrary weighted-sum score and treatment recommendations.
     """
-    Core domain algorithm for hiv-dadr-cardiovascular-risk.
-    """
-    params = {}
-    for k, v in kwargs.items():
-        if v is not None:
-            try:
-                params[k] = float(v)
-            except (ValueError, TypeError):
-                params[k] = str(v)
+    missing = [name for name in REQUIRED_FIELDS if _empty(kwargs.get(name))]
+    errors = [
+        error for name in REQUIRED_FIELDS if name not in missing
+        if (error := _validate_value(name, kwargs[name]))
+    ]
+    unknown = sorted(set(kwargs) - set(REQUIRED_FIELDS))
+    if unknown:
+        errors.append("Unrecognized fields: " + ", ".join(unknown))
 
-    # Deterministic domain logic
-    numeric_vals = [val for val in params.values() if isinstance(val, (int, float))]
-    primary_val = numeric_vals[0] if numeric_vals else 1.0
+    # Cross-field consistency helps identify data-entry mistakes.
+    if (not any(k in missing for k in ("total_cholesterol", "hdl_cholesterol"))
+            and not any("cholesterol" in e for e in errors)):
+        if float(kwargs["hdl_cholesterol"]) > float(kwargs["total_cholesterol"]):
+            errors.append("hdl_cholesterol cannot exceed total_cholesterol")
 
-    score = primary_val
-    for idx, nv in enumerate(numeric_vals[1:], start=2):
-        score += nv * (1.0 / idx)
-
-    rounded_score = round(score, 2)
-    
-    # Classification / tiering
-    if rounded_score < 10.0:
-        tier = "Low / Standard"
-        action = "Standard monitoring or negative cutoff"
-    elif rounded_score < 25.0:
-        tier = "Moderate / Intermediate"
-        action = "Close observation or secondary evaluation"
-    else:
-        tier = "High / Severe"
-        action = "Urgent clinical intervention or primary positive finding"
-
+    ready = not missing and not errors
     return {
         "tool": "hiv-dadr-cardiovascular-risk",
-        "score": rounded_score,
-        "classification": tier,
-        "clinical_recommendation": action,
-        "inputs_evaluated": len(params),
+        "status": "INPUTS_COMPLETE" if ready else "INPUTS_INCOMPLETE",
+        "score": None,
+        "classification": "NOT_CALCULATED",
+        "risk_5y_percent": None,
+        "clinical_recommendation": "No clinical recommendation is calculated.",
+        "inputs_evaluated": len(kwargs),
+        "missing_inputs": missing,
+        "validation_errors": errors,
+        "calculator_url": CALCULATOR_URL,
+        "note": (
+            "No D:A:D risk equation is implemented. Review the inputs and "
+            "calculate risk independently with the study group's tool. "
+            "The input bounds are data-entry checks, not clinical thresholds."
+        ),
     }
 
 
-def process_single(args) -> None:
-    kwargs = vars(args)
-    kwargs.pop("func", None)
-    res = calculate_metrics(**kwargs)
-    print(json.dumps(res, indent=2))
+def process_single(args: argparse.Namespace) -> None:
+    fields = {name: getattr(args, name) for name in REQUIRED_FIELDS}
+    print(json.dumps(calculate_metrics(**{
+        key: value for key, value in fields.items() if value is not None
+    }), indent=2))
+
+
+def _csv_safe_cell(value: Any) -> Any:
+    """Prevent spreadsheet formula execution when a CSV is opened in Excel."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip()
+    if not stripped or stripped[0] not in "=+-@":
+        return value
+    if stripped[0] in "+-":
+        try:
+            if math.isfinite(float(stripped)):
+                return value  # Preserve ordinary signed numeric values.
+        except ValueError:
+            pass
+    return "'" + value
 
 
 def process_batch(input_csv: str, output_csv: str) -> None:
-    """Process a CSV file of patient records and append risk scores.
-
-    Args:
-        input_csv: Path to input CSV file with patient data.
-        output_csv: Path to output CSV file for results.
-
-    Raises:
-        FileNotFoundError: If input_csv does not exist.
-        PermissionError: If lacking permissions to read/write files.
-        ValueError: If input CSV is empty or has no headers.
-    """
+    """Annotate local CSV records with input-completeness status, never risk."""
     if not os.path.isfile(input_csv):
         raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
+    if os.path.abspath(input_csv) == os.path.abspath(output_csv):
+        raise ValueError("Output CSV must be different from input CSV")
 
-    with open(input_csv, mode="r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        fieldnames = list(reader.fieldnames or [])
-        if not fieldnames:
-            raise ValueError(f"Input CSV file is empty or has no headers: {input_csv}")
+    with open(input_csv, newline="", encoding="utf-8-sig") as source:
+        reader = csv.DictReader(source)
+        fields = list(reader.fieldnames or [])
+        if not fields or any(not field.strip() for field in fields) or len(fields) != len(set(fields)):
+            raise ValueError("Input CSV requires unique, nonempty headers")
         rows = list(reader)
-
-    out_fields = fieldnames + ["score", "classification", "clinical_recommendation"]
-    out_rows = []
-
-    for r in rows:
-        calc_res = calculate_metrics(**r)
-        row_dict = dict(r)
-        row_dict["score"] = calc_res["score"]
-        row_dict["classification"] = calc_res["classification"]
-        row_dict["clinical_recommendation"] = calc_res["clinical_recommendation"]
-        out_rows.append(row_dict)
-
-    output_dir = os.path.dirname(output_csv)
-    if output_dir and not os.path.isdir(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-
-    with open(output_csv, mode="w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=out_fields)
+    results = []
+    for i, row in enumerate(rows, 2):
+        if None in row:
+            raise ValueError(f"CSV row {i} has more columns than headers")
+        inputs = {key: row[key] for key in REQUIRED_FIELDS if key in row}
+        result = calculate_metrics(**inputs)
+        record = dict(row)
+        # Never retain stale or previously generated risk estimates.
+        record["risk_5y_percent"] = ""
+        record["validation_status"] = result["status"]
+        record["missing_fields"] = "; ".join(result["missing_inputs"])
+        record["validation_errors"] = "; ".join(result["validation_errors"])
+        results.append(record)
+    output_fields = list(dict.fromkeys(
+        fields + ["risk_5y_percent", "validation_status",
+                  "missing_fields", "validation_errors"]
+    ))
+    parent = os.path.dirname(os.path.abspath(output_csv))
+    os.makedirs(parent, exist_ok=True)
+    with open(output_csv, "w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=output_fields)
         writer.writeheader()
-        writer.writerows(out_rows)
+        writer.writerows([{k: _csv_safe_cell(v) for k, v in row.items()}
+                         for row in results])
+    print(f"Validated {len(results)} records -> {output_csv} (no risk scores computed)")
 
-    print(f"Processed {len(out_rows)} records -> {output_csv}")
 
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="D:A:D 5-Year Cardiovascular Risk Equation for HIV")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # Single parser
-    single_parser = subparsers.add_parser("single", help="Evaluate single case")
-    single_parser.add_argument("--v1", type=float, default=10.0, help="Primary parameter")
-    single_parser.add_argument("--v2", type=float, default=5.0, help="Secondary parameter")
-    single_parser.add_argument("--v3", type=float, default=2.0, help="Tertiary parameter")
-    single_parser.set_defaults(func=process_single)
-
-    # Batch parser
-    batch_parser = subparsers.add_parser("batch", help="Process batch CSV")
-    batch_parser.add_argument("-i", "--input", required=True, help="Input CSV")
-    batch_parser.add_argument("-o", "--output", default="results.csv", help="Output CSV")
-
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        description="D:A:D reduced-model input checker (NOT a risk calculator)"
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    one = commands.add_parser("single", help="Check required inputs")
+    for field in REQUIRED_FIELDS:
+        if field in NUMERIC_RANGES:
+            one.add_argument("--" + field.replace("_", "-"), type=float)
+        else:
+            one.add_argument("--" + field.replace("_", "-"))
+    batch = commands.add_parser("batch", help="Validate CSV without scoring")
+    batch.add_argument("-i", "--input", required=True)
+    batch.add_argument("-o", "--output", default="results.csv")
     args = parser.parse_args(argv)
-
     if args.command == "single":
-        args.func(args)
-    elif args.command == "batch":
+        process_single(args)
+    else:
         process_batch(args.input, args.output)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

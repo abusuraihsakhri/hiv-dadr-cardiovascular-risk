@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hiv-dadr-cardiovascular-risk"
 version = "3.0.0"
-description = "D:A:D 5-Year Cardiovascular Risk Equation for HIV - Enterprise Automated Analytical Suite"
+description = "D:A:D reduced-model input checker and non-clinical agent demonstration"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -20,7 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
 dependencies = [
     "pydantic>=2.0",
@@ -43,6 +42,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.setuptools]
+py-modules = ["cli", "dad_hiv_risk", "enrichment", "simulator"]
 
 [tool.setuptools.packages.find]
 include = ["agents*"]

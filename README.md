@@ -1,205 +1,75 @@
-# Hiv Dadr Cardiovascular Risk
+# HIV D:A:D cardiovascular-risk input checker
 
-> **Domain:** Infectious Disease Surveillance & Microbiology
-> **Reference Guidelines & Standards:** `CLSI M100, EUCAST & CDC NHSN Clinical Standards`
+This repository provides a local and browser-based **input-readiness checker** for the reduced D:A:D cardiovascular-risk model used in people living with HIV.
 
-<div align="center">
+> **Clinical status:** This project does **not** calculate the published five-year D:A:D CVD risk, assign risk categories, or recommend interventions. The original arbitrary weighted-sum score has been withdrawn. For actual estimates use the [CHIP D:A:D Risk Assessment Tool](https://chip.dk/resources/tools-standards/risk-assessment-tool/) and independent clinical judgment.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Features
 
-</div>
+- **Browser form:** The standalone **web/index.html** reviews all nine reduced-model predictors and downloads a CSV header template.
+- **Python checker:** **dad_hiv_risk.py** validates one input set or local CSV batches without generating a risk percentage.
+- **Demonstration-only agent framework:** **agents/** and **cli.py** implement mock status/rule processing, HMAC-chained in-memory audits, FastAPI endpoints, and batch simulation. They are not clinical decision-support tools.
+- Tests cover predictor validation, CSV edge cases, audit-signature tampering, and prior demonstration functionality.
 
----
+## Browser usage
 
-## 📖 What It Does
+Open **web/index.html** in a modern browser. Alternatively run:
 
-D:A:D 5-Year Cardiovascular Risk Equation for HIV
-Calculates 5-year CVD risk tailored for people living with HIV on antiretroviral therapy (ART).
+~~~bash
+python -m http.server 8080 --directory web
+~~~
 
-Zero-dependency Python implementation with single and batch evaluation.
-Author: Dr. Abu Suraih Sakhri
-License: MIT
+Then visit http://localhost:8080/. The browser form has no server dependencies or external script/font requests. Values are checked locally and are not saved or uploaded. The link to the official CHIP tool opens an independent website.
 
----
+## Python usage
 
-## 🚀 Installation
+Requires Python 3.10+.
 
-### Prerequisites
-- Python 3.10 or higher
-- pip
+~~~bash
+python dad_hiv_risk.py single --age 48 --sex male --systolic-bp 130 \
+  --smoking-status former --family-history-cvd no --diabetes no \
+  --total-cholesterol 5.2 --hdl-cholesterol 1.3 --cd4-count 650
 
-### Install Dependencies
-```bash
-# Clone the repository
-git clone https://github.com/abusuraihsakhri/hiv-dadr-cardiovascular-risk.git
-cd hiv-dadr-cardiovascular-risk
-
-# Create virtual environment (recommended)
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/macOS
-
-# Install dependencies
-pip install -e ".[dev]"
-```
-
-### Optional: Set Audit Secret Key
-```bash
-# Linux/macOS
-export AUDIT_SECRET_KEY="your-secure-random-key-here"
-
-# Windows
-set AUDIT_SECRET_KEY=your-secure-random-key-here
-```
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### Core Functions
-
-- **`calculate_metrics(**kwargs)`**: Core domain algorithm that computes risk scores from input parameters.
-- **`process_single(args)`**: Evaluates a single case and outputs JSON results.
-- **`process_batch(input_csv, output_csv)`**: Processes CSV files with patient data and appends risk scores.
-- **`main()`**: CLI entry point with subcommands for single/batch processing.
-
----
-
-## 💻 Usage
-
-### 1. Single Case Evaluation
-```bash
-# Using dad_hiv_risk module
-python dad_hiv_risk.py single --v1 14.5 --v2 4.2 --v3 1.8
-
-# Using the enterprise CLI
-python cli.py audit --task-id TASK-001 --target PATIENT-01 --primary 14.5 --secondary 4.2
-```
-
-### 2. Batch CSV Processing
-```bash
-# Using dad_hiv_risk module
 python dad_hiv_risk.py batch -i sample.csv -o results.csv
+~~~
 
-# Using the enterprise CLI
-python cli.py batch -i sample.csv -o results.csv
-```
+Results report **INPUTS_COMPLETE** or **INPUTS_INCOMPLETE**, missing/invalid fields and a null or blank five-year risk. No clinical risk is calculated.
 
-### Input CSV Format
-```csv
-Patient_ID,v1,v2,v3
-PT-101,14.5,4.2,1.8
-PT-102,8.0,2.1,0.5
-```
+CSV predictor columns are: age (years), sex (male/female as coded by the published model), systolic_bp (mmHg), smoking_status (never/former/current), family_history_cvd (yes/no), diabetes (yes/no), total_cholesterol (mmol/L), hdl_cholesterol (mmol/L), and cd4_count (cells/µL). Extra local identifier columns are retained. Do not send patient-identifiable data to third-party calculators.
 
-### 3. Launch REST API Server
-```bash
-python cli.py serve --host 127.0.0.1 --port 8000
-```
+Age limits are based on the reported calculator applicability; other input ranges are broad plausibility checks, not clinical thresholds.
 
-### 4. Verify Audit Trail
-```bash
-python cli.py verify-audit
-```
+## Optional demonstration CLI/API
 
----
+~~~bash
+python -m pip install -e ".[dev]"
+python -m pytest -q
+hiv-dadr-risk serve --host 127.0.0.1 --port 8000
+hiv-dadr-risk audit --task-id TEST-001 --target KEY-001 --primary 15
+hiv-dadr-risk verify-audit
+~~~
 
-## 🛡️ Security Features
+API endpoints are **/health**, **/metrics**, **/api/audit**, **/api/chat**, and **/api/audit/logs**. Their logic is demonstration-only; the mock chat adapter does not query external models or verify clinical statements. Do not expose the unauthenticated API publicly.
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Secure Key Management:** Audit signing key sourced from `AUDIT_SECRET_KEY` environment variable with secure ephemeral fallback.
+For Docker Compose, provide an audit key at runtime:
 
----
+~~~bash
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+docker compose up --build
+~~~
 
-## 🧪 Testing
+The audit ledger is process-local, not persistent. HMAC verification detects alterations to stored signed entries but is not a substitute for a durable audit system. The regex-based identifier filter does not guarantee full PHI de-identification or regulatory compliance.
 
-### Run All Tests
-```bash
-pytest -v
-```
+## Limitations and validation
 
-### Run Specific Test Files
-```bash
-pytest test_dad_hiv_risk.py -v
-pytest tests/test_hiv_dadr_cardiovascular_risk.py -v
-pytest tests/test_enrichment.py -v
-```
+The 2016 updated D:A:D model has both reduced and full formulations. The full formulation additionally uses antiretroviral exposure. Correct calculation requires published model coefficients and baseline survival; neither is implemented here. Clinical validity, browser compatibility, and deployment status should not be inferred from input completeness.
 
-### Run Simulation Benchmark
-```bash
-python simulator.py 1000
-```
+The static browser form is intended for current Chromium, Firefox and Safari; it requires JavaScript. The source code is authoritative if deployment information becomes outdated.
 
----
+## Reference
 
-## 🐳 Docker Deployment
+Friis-Møller N, Ryom L, Smith C, et al. An updated prediction model of the global risk of cardiovascular disease in HIV-positive persons: the D:A:D study. *European Journal of Preventive Cardiology*. 2016;23(2):214–223. [PMID 25882821](https://pubmed.ncbi.nlm.nih.gov/25882821/).
 
-### Build and Run
-```bash
-# Build the image
-docker build -t hiv-dadr-cardiovascular-risk .
+## License
 
-# Run with environment variables
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secure-key hiv-dadr-cardiovascular-risk
-```
-
-### Using Docker Compose
-```bash
-# Set your audit key in docker-compose.yml first
-docker compose up -d
-```
-
----
-
-## 📁 Project Structure
-
-```
-hiv-dadr-cardiovascular-risk/
-├── agents/                  # Enterprise agent framework
-│   ├── __init__.py         # Package initialization
-│   ├── api.py              # FastAPI REST endpoints
-│   ├── base.py             # Security guards, audit trail
-│   ├── learning.py         # Bayesian calibration engine
-│   ├── llm_factory.py      # LLM provider factory
-│   ├── metrics.py          # Prometheus metrics exporter
-│   ├── models.py           # Pydantic data models
-│   ├── streamer.py         # WebSocket telemetry
-│   ├── supervisor.py       # Multi-agent orchestrator
-│   └── workers.py          # Specialized domain workers
-├── tests/                  # Test suite
-│   ├── test_enrichment.py
-│   └── test_hiv_dadr_cardiovascular_risk.py
-├── web/                    # Web dashboard
-│   └── index.html
-├── cli.py                  # Enterprise CLI entry point
-├── dad_hiv_risk.py         # Core risk calculation module
-├── enrichment.py           # Enrichment feature engines
-├── simulator.py            # Load testing simulator
-├── sample.csv              # Sample patient data
-├── pyproject.toml          # Project configuration
-├── Dockerfile              # Container build config
-├── docker-compose.yml      # Multi-container orchestration
-└── openapi_spec.json       # OpenAPI specification
-```
-
----
-
-## 📐 Risk Classification
-
-| Score Range | Classification | Clinical Recommendation |
-|:------------|:---------------|:------------------------|
-| < 10.0 | Low / Standard | Standard monitoring |
-| 10.0 - 24.9 | Moderate / Intermediate | Close observation |
-| >= 25.0 | High / Severe | Urgent clinical intervention |
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).

@@ -1,236 +1,174 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hiv Dadr Cardiovascular Risk — Operations Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #090d16;
-            --card: #111827;
-            --border: #1f293d;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.25);
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            min-height: 100vh;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-title h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-        .badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 1.5rem;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            background: #0d1322;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #fff;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
-        }
-        .btn:hover { background: #2563eb; }
-        .terminal {
-            background: #060911;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #10b981;
-            height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .metric-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .metric-val { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Privacy-preserving checklist for inputs required by the D:A:D reduced cardiovascular-risk model. Does not calculate risk.">
+  <title>D:A:D CVD — Input Readiness Checker</title>
+  <style>
+    :root {font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172738;background:#f4f7fa}
+    * {box-sizing:border-box}
+    body {margin:0;line-height:1.5}
+    main,header,footer {max-width:1050px;margin:0 auto;padding:1.5rem}
+    header {padding-top:2rem}
+    h1 {font-size:clamp(1.65rem,3vw,2.25rem);line-height:1.2;margin:.35rem 0}
+    h2 {font-size:1.13rem;margin:0 0 1rem}
+    p {margin:.5rem 0 1rem}
+    .eyebrow {color:#275980;text-transform:uppercase;letter-spacing:.09em;font-size:.75rem;font-weight:700}
+    .muted,small {color:#526579}
+    .notice {border-left:4px solid #a75a17;background:#fff8eb;padding:1rem 1.2rem;margin:1rem 0 1.5rem}
+    .layout {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:1.2rem;align-items:start}
+    .panel {border:1px solid #d5dee8;border-radius:12px;background:#fff;padding:1.4rem;box-shadow:0 1px 4px rgba(13,30,50,.05)}
+    .fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+    label {font-size:.91rem;font-weight:650;display:block;margin-bottom:.3rem}
+    input,select {width:100%;height:2.7rem;border:1px solid #a5b6c7;border-radius:7px;padding:.5rem .65rem;background:white;color:#142b3e;font:inherit}
+    input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible {outline:3px solid #7bb6fb;outline-offset:2px}
+    .hint {font-size:.76rem;margin-top:.25rem;color:#587082}
+    .controls {display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.5rem}
+    button,.external {border:1px solid #224d6c;border-radius:7px;padding:.7rem 1rem;font:inherit;font-weight:650;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    button.primary,.external {background:#14557f;color:#fff}
+    button.secondary {background:#fff;color:#174663}
+    button:hover,.external:hover {filter:brightness(.94)}
+    .result {border:1px solid #d5dee8;padding:1rem;border-radius:9px;background:#f5f8fa}
+    .result h3 {font-size:1.05rem;margin:0 0 .35rem}
+    ul {margin:.5rem 0 1rem;padding-left:1.2rem}
+    li {margin:.3rem 0}
+    a {color:#14557f}
+    .external {margin:.65rem 0 1rem;max-width:100%}
+    .footnote {border-top:1px solid #d5dee8;margin-top:1.5rem;padding-top:1rem;font-size:.86rem}
+    @media (max-width:730px) {.layout {grid-template-columns:1fr}.fields {grid-template-columns:1fr} main,header,footer {padding:1rem}.panel {padding:1rem}}
+  </style>
 </head>
 <body>
+<header>
+  <div class="eyebrow">Research and data-preparation utility</div>
+  <h1>D:A:D cardiovascular risk — input readiness</h1>
+  <p class="muted">Review the nine predictors used by the published reduced model before using the study group's calculator.</p>
+</header>
+<main>
+  <div class="notice" role="note"><strong>This is not a cardiovascular-risk calculator.</strong>
+    The repository's earlier scoring formula was not the published D:A:D equation. This page checks input completeness and broad entry ranges only. It does not generate a risk percentage, classification, treatment recommendation, or clinical clearance.
+  </div>
+  <div class="layout">
+    <section class="panel" aria-labelledby="input-title">
+      <h2 id="input-title">Reduced-model predictors</h2>
+      <form id="checker" novalidate>
+        <div class="fields">
+          <div><label for="age">Age (years)</label><input id="age" name="age" type="number" min="18" max="75" step="1" inputmode="numeric" required><div class="hint">18–75, calculator model range</div></div>
+          <div><label for="sex">Sex (model coding)</label><select id="sex" name="sex" required><option value="">Select…</option><option value="female">Female</option><option value="male">Male</option></select><div class="hint">Categories used by the published model</div></div>
+          <div><label for="systolic_bp">Systolic BP (mmHg)</label><input id="systolic_bp" name="systolic_bp" type="number" min="50" max="300" step="any" inputmode="decimal" required></div>
+          <div><label for="smoking_status">Smoking status</label><select id="smoking_status" name="smoking_status" required><option value="">Select…</option><option value="never">Never</option><option value="former">Former</option><option value="current">Current</option></select></div>
+          <div><label for="family_history_cvd">Family history of CVD</label><select id="family_history_cvd" name="family_history_cvd" required><option value="">Select…</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+          <div><label for="diabetes">Diabetes mellitus</label><select id="diabetes" name="diabetes" required><option value="">Select…</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+          <div><label for="total_cholesterol">Total cholesterol (mmol/L)</label><input id="total_cholesterol" name="total_cholesterol" type="number" min="0.1" max="30" step="any" inputmode="decimal" required></div>
+          <div><label for="hdl_cholesterol">HDL cholesterol (mmol/L)</label><input id="hdl_cholesterol" name="hdl_cholesterol" type="number" min="0.1" max="10" step="any" inputmode="decimal" required></div>
+          <div><label for="cd4_count">CD4 count (cells/µL)</label><input id="cd4_count" name="cd4_count" type="number" min="1" max="5000" step="any" inputmode="decimal" required></div>
+        </div>
+        <div class="controls">
+          <button class="primary" type="submit">Check input readiness</button>
+          <button class="secondary" type="reset">Clear form</button>
+          <button class="secondary" type="button" id="template">Download CSV template</button>
+        </div>
+      </form>
+    </section>
+    <aside class="panel" aria-labelledby="result-title">
+      <h2 id="result-title">Review result</h2>
+      <div class="result" id="result" role="status" aria-live="polite">
+        <h3>Not checked</h3><p>Enter the available predictors and select “Check input readiness.” No risk percentage will be computed.</p>
+      </div>
+      <p class="muted" style="margin-top:1rem">Complete the assessment separately using the official CHIP D:A:D (R) risk tool. The full D:A:D (F) model additionally requires antiretroviral-exposure data.</p>
+      <a class="external" href="https://chip.dk/resources/tools-standards/risk-assessment-tool/" target="_blank" rel="noopener noreferrer">Open the CHIP risk assessment tool ↗</a>
+      <p class="muted"><strong>Privacy:</strong> This standalone page does not send, save, or log values, and loads no third-party scripts. The official calculator is a separate website with its own privacy practices.</p>
+      <div class="footnote">
+        <strong>Evidence</strong>
+        <p>Friis-Møller N, et al. Updated D:A:D cardiovascular risk prediction. <em>Eur J Prev Cardiol.</em> 2016;23:214–223. <a href="https://pubmed.ncbi.nlm.nih.gov/25882821/" target="_blank" rel="noopener noreferrer">PMID 25882821</a>.</p>
+        <p class="muted">Entry limits other than age are deliberately broad plausibility checks, not published clinical decision thresholds. The checker has not undergone clinical validation.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+<footer class="muted">Static offline-capable form · No backend or patient identifiers required · MIT-licensed project</footer>
+<script>
+(() => {
+  "use strict";
+  const form = document.getElementById("checker");
+  const output = document.getElementById("result");
+  const numeric = ["age", "systolic_bp", "total_cholesterol", "hdl_cholesterol", "cd4_count"];
+  const fieldNames = {
+    age:"Age", sex:"Sex", systolic_bp:"Systolic BP", smoking_status:"Smoking status",
+    family_history_cvd:"Family history of CVD", diabetes:"Diabetes",
+    total_cholesterol:"Total cholesterol", hdl_cholesterol:"HDL cholesterol", cd4_count:"CD4 count"
+  };
+  const bounds = {age:[18,75],systolic_bp:[50,300],total_cholesterol:[.1,30],hdl_cholesterol:[.1,10],cd4_count:[1,5000]};
+  const heading = (text) => { const h = document.createElement("h3"); h.textContent = text; output.appendChild(h); };
+  const message = (text) => { const p = document.createElement("p"); p.textContent = text; output.appendChild(p); };
 
-    <div class="header">
-        <div class="header-title">
-            <h1>Hiv Dadr Cardiovascular Risk</h1>
-            <p>Domain: Clinical & Cryptographic AI | Standard: CAP / CLSI / NIST Standards | LabMind-Atlas Architecture</p>
-        </div>
-        <div>
-            <span class="badge">Air-Gapped Active</span>
-            <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; border-color: #10b981;">Zero-PHI Guard Active</span>
-        </div>
-    </div>
-
-    <div class="metrics-bar">
-        <div class="metric-box">
-            <div class="metric-label">System Status</div>
-            <div class="metric-val" style="color: var(--success);" id="m-status">OPTIMAL</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Tasks Processed</div>
-            <div class="metric-val" id="m-tasks">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Audit Blocks Signed</div>
-            <div class="metric-val" id="m-audit">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">PHI Interceptions</div>
-            <div class="metric-val" style="color: var(--accent);" id="m-phi">0</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>⚙️ Dispatch Distributed Component Audit</h2>
-            <div class="form-group">
-                <label>Task / Sample ID</label>
-                <input type="text" id="task_id" value="TASK-2026-LIVE-01">
-            </div>
-            <div class="form-group">
-                <label>Target Identifier</label>
-                <input type="text" id="target_id" value="SPECIMEN-ALPHA-77">
-            </div>
-            <div class="form-group">
-                <label>Primary Measurement / Value</label>
-                <input type="number" id="primary_metric" value="29.4" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Secondary Metric / Kinetic Index</label>
-                <input type="number" id="secondary_metric" value="14.8" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Status / Phenotype Descriptor</label>
-                <input type="text" id="status_descriptor" value="DISCORDANT_ANOMALY">
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="is_critical" checked> Trigger Emergency / Critical Flag</label>
-            </div>
-            <button class="btn" onclick="runAudit()">Execute Distributed Component Audit</button>
-        </div>
-
-        <div class="card">
-            <h2>📊 Real-Time Consensus Dossier & Audit Log</h2>
-            <div class="terminal" id="outputConsole">// Hiv Dadr Cardiovascular Risk Operations Console Ready
-// Connection established with Air-Gapped Supervisor
-// Cryptographic HMAC-SHA256 audit ledger loaded.
-// Ready for live task payload dispatch...</div>
-        </div>
-    </div>
-
-    <script>
-        async function runAudit() {
-            const consoleEl = document.getElementById('outputConsole');
-            consoleEl.innerText = "// Dispatching task across specialized workers...
-// Invoking InvariantQCWorker, SafetyEscalationWorker, ProtocolWorker...";
-
-            const payload = {
-                task_id: document.getElementById('task_id').value,
-                target_identifier: document.getElementById('target_id').value,
-                primary_metric: parseFloat(document.getElementById('primary_metric').value),
-                secondary_metric: parseFloat(document.getElementById('secondary_metric').value),
-                status_descriptor: document.getElementById('status_descriptor').value,
-                is_critical_flag: document.getElementById('is_critical').checked
-            };
-
-            try {
-                const res = await fetch('/api/audit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                consoleEl.innerText = JSON.stringify(data, null, 2);
-                document.getElementById('m-tasks').innerText = parseInt(document.getElementById('m-tasks').innerText) + 1;
-                document.getElementById('m-audit').innerText = parseInt(document.getElementById('m-audit').innerText) + 1;
-            } catch (err) {
-                consoleEl.innerText = "// Offline / Simulation Output:\n" + JSON.stringify({
-                    dossier_id: "DOSSIER-SIM-" + Math.floor(Math.random()*10000),
-                    system: "hiv-dadr-cardiovascular-risk",
-                    domain: "Clinical & Cryptographic AI",
-                    task_id: payload.task_id,
-                    overall_urgency: payload.is_critical_flag ? "CRITICAL_STAT_PANIC" : "ELEVATED_RISK",
-                    integrity_status: "DISCORDANT_ANOMALY",
-                    alerts: [
-                        { worker: "InvariantQCWorker", alert: "Primary metric exceeds upper reference bound" },
-                        { worker: "SafetyEscalationWorker", alert: "Critical emergency interlock flag active" }
-                    ],
-                    audit_hash: "HMAC_SHA256_e83f9a72b941d6c381f9"
-                }, null, 2);
-            }
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const issues = [];
+    const missing = [];
+    for (const [key, label] of Object.entries(fieldNames)) {
+      const input = form.elements.namedItem(key);
+      const raw = input.value.trim();
+      input.setAttribute("aria-invalid", "false");
+      if (!raw) {
+        missing.push(label);
+        input.setAttribute("aria-invalid", "true");
+      } else if (numeric.includes(key)) {
+        const number = Number(raw);
+        if (!Number.isFinite(number) || number < bounds[key][0] || number > bounds[key][1] ||
+            (key === "age" && !Number.isInteger(number))) {
+          issues.push(label + ": outside accepted data-entry range");
+          input.setAttribute("aria-invalid", "true");
         }
-    </script>
+      }
+    }
+    const total = Number(form.elements.namedItem("total_cholesterol").value);
+    const hdl = Number(form.elements.namedItem("hdl_cholesterol").value);
+    if (form.elements.namedItem("total_cholesterol").value && form.elements.namedItem("hdl_cholesterol").value &&
+        Number.isFinite(total) && Number.isFinite(hdl) && hdl > total) {
+      issues.push("HDL cholesterol cannot exceed total cholesterol.");
+    }
+    output.replaceChildren();
+    if (!missing.length && !issues.length) {
+      heading("Input set complete");
+      message("All nine reduced-model predictors have been supplied and pass the entry checks. This does not validate clinical eligibility or calculate risk.");
+    } else {
+      heading("Review required");
+      if (missing.length) message("Missing: " + missing.join(", ") + ".");
+      if (issues.length) {
+        const list = document.createElement("ul");
+        issues.forEach((issue) => {
+          const li = document.createElement("li");
+          li.textContent = issue;
+          list.appendChild(li);
+        });
+        output.appendChild(list);
+      }
+    }
+  });
+
+  form.addEventListener("reset", () => {
+    output.replaceChildren();
+    heading("Not checked");
+    message("Enter the available predictors and check input readiness.");
+    for (const input of form.querySelectorAll("[aria-invalid]")) input.removeAttribute("aria-invalid");
+  });
+
+  document.getElementById("template").addEventListener("click", () => {
+    const header = Object.keys(fieldNames).join(",") + "\n";
+    const blob = new Blob([header], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dad-reduced-input-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
 </body>
 </html>

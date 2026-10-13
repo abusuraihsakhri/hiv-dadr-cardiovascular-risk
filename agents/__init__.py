@@ -1,7 +1,7 @@
 """
 Hiv Dadr Cardiovascular Risk — Enterprise Automated Analytical Suite.
-Domain: Antimicrobial Stewardship & Microbiology
-Standard: CLSI M100 / EUCAST / CDC NHSN Guidelines
+Domain: Non-clinical demonstration
+Standard: No validated clinical model implemented
 
 """
 __version__ = "3.0.0-ENTERPRISE"
